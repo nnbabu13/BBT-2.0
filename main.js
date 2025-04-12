@@ -62,6 +62,7 @@ app.post("/", (req, res) => {
         req.session.flash = { danger: 'Please enter valid inputs.' };
         return res.redirect('/');
     }
+    console.log('Headers:', req.headers);
     const starting_bankroll = parseFloat(req.body.starting_bankroll);
     const base_bet = parseFloat(req.body.base_bet);
     const profit_target = parseFloat(req.body.profit_target);
