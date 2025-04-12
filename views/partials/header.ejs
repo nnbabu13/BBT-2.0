@@ -9,10 +9,10 @@
 <body>
     <div class="container mt-4 mb-5">
         <!-- Flash Messages -->
-        <% if (flash && Object.keys(flash).length > 0) { %>
-            <% Object.keys(flash).forEach(function(type) { %>
+        <% if (messages && Object.keys(messages).length > 0) { %>
+            <% Object.keys(messages).forEach(function(type) { %>
                 <div class="alert alert-<%= type %> alert-dismissible fade show" role="alert">
-                    <%= flash[type] %>
+                    <%= messages[type] %>
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             <% }); %>

@@ -35,30 +35,31 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "..", "public")));
 
 // Middleware to clear flash messages
-const clearFlash = (req, res, next) => {
-  req.session.flash = null;
-  next();
-};
+
 
 // Routes
-app.get("/", clearFlash, (req, res) => {
+app.get("/", (req, res) => {
   if (req.session.sessionId) {
     return res.redirect("/session");
   }
-  const data = {};
-  if (req.session.flash) {
-    data.flash = req.session.flash;
+  let messages = {};
+  if (req.session.messages) {
+    messages = req.session.messages;
+    req.session.messages = null; 
   }
-  res.render("index", data);
+  res.render("index", {messages});
 });
 
 app.post("/", (req, res) => {
   console.log("Headers:", req.headers);
   console.log("Session data:", req.session);
   if (!req.body) {
-    req.session.flash = { danger: "Please enter valid inputs." };
-    return res.redirect("/");
+    req.session.messages = { danger: "Please enter valid inputs." };
+    return res.redirect(
+      '/',
+    );
   }
+  
   const starting_bankroll = parseFloat(req.body.starting_bankroll);
   const base_bet = parseFloat(req.body.base_bet);
   const profit_target = parseFloat(req.body.profit_target);
@@ -70,9 +71,11 @@ app.post("/", (req, res) => {
     base_bet <= 0 ||
     isNaN(profit_target) ||
     profit_target <= 0
-  ) {
-    req.session.flash = { danger: "Please enter valid inputs." };
-    return res.redirect("/");
+    ) {
+      req.session.messages = { danger: "Please enter valid inputs." };
+      return res.redirect(
+        '/',
+      );
   }
 
   req.session.sessionId = Math.random().toString(36).substring(2, 9);
@@ -83,53 +86,56 @@ app.post("/", (req, res) => {
   req.session.profit_target = profit_target;
   req.session.current_bet = base_bet;
   req.session.round_number = 1;
-  req.session.bet_history = [];
-  req.session.flash = { success: "Session started successfully! Good luck!" };
+    req.session.bet_history = [];
+    req.session.messages = { success: "Session started successfully! Good luck!" };
   res.redirect("/session");
 });
 
-app.get("/session", clearFlash, (req, res) => {
-  const session = req.session;
-  console.log("Session data:", req.session);
-  if (!session || !session.sessionId) {
-    req.session.flash = {
-      warning: "No active session found. Please set up a new session.",
-    };
-    return res.redirect("/");
-  }
-   const net_profit = session.current_bankroll - session.starting_bankroll;
-  const data = { ...session, net_profit };
-  if (req.session.flash) {
-    data.flash = req.session.flash;
-  }
-  res.render("session", data);
-});
+app.get("/session", (req, res) => {
+    const session = req.session;
+    console.log("Session data:", req.session);
+    if (!session || !session.sessionId) {
+        req.session.messages = {
+            warning: "No active session found. Please set up a new session.",
+        };
+      return res.redirect(
+        '/',
+      );
+    }
+    const net_profit = session.current_bankroll - session.starting_bankroll;
+    let messages = {};
+    if (req.session.messages) {
+      messages = req.session.messages;
+      req.session.messages = null;
+    }
+    res.render("session", { ...session, net_profit, messages });
+  });
 
 app.post("/session", (req, res) => {
-  if (!req.session.sessionId) {
-    req.session.flash = {
-      warning: "No active session found. Please set up a new session.",
-    };
-    return res.redirect("/");
-  }
-
-  const session = req.session;
-  const bet_amount = parseFloat(req.body.bet_amount);
-  const result = req.body.result;
-
-  if (
-    isNaN(bet_amount) ||
-    bet_amount <= 0 ||
-    !["win", "loss"].includes(result)
-  ) {
-    req.session.flash = { danger: "Invalid input." };
-    return res.redirect("/session");
-  }
-
-  if (bet_amount > session.current_bankroll) {
-    req.session.flash = { danger: "Bet exceeds current bankroll." };
-    return res.redirect("/session");
-  }
+    if (!req.session.sessionId) {
+      req.session.messages = {
+        warning: "No active session found. Please set up a new session.",
+      };
+      return res.redirect(
+        '/',
+      );
+    }
+  
+    const session = req.session;
+    const bet_amount = parseFloat(req.body.bet_amount);
+    const result = req.body.result;
+  
+    if (
+      isNaN(bet_amount) ||
+      bet_amount <= 0 ||
+      !["win", "loss"].includes(result)
+    ) {
+      req.session.messages = { danger: "Invalid input." };
+      return res.redirect(
+        '/session',
+      );
+    }
+  
 
   const isDivisible =
     Math.abs(Math.round(bet_amount / session.base_bet) - (bet_amount / session.base_bet)) < 0.0001;
@@ -140,7 +146,9 @@ app.post("/session", (req, res) => {
         2
       )}).`,
     };
-    return res.redirect("/session");
+    return res.redirect(
+      '/session',
+    );
   }
 
   let profit_loss = 0;
@@ -182,12 +190,14 @@ app.post("/session", (req, res) => {
     result === "win" ? "You won" : "You lost"
   } $${bet_amount.toFixed(2)}. Current bankroll: $${session.current_bankroll.toFixed(
     2
-  )}.`;
-  req.session.flash = { [flashType]: flashMessage };
-  res.redirect("/session");
-});
-
-app.post("/reset", (req, res) => {
+    )}.`;
+  req.session.messages = { [flashType]: flashMessage };
+  res.redirect(
+    '/session',
+  );
+  });
+  
+  app.post("/reset", (req, res) => {
   if (req.session) {
     req.session = null;
   }
