@@ -35,7 +35,18 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Session configuration (in-memory)
+// Custom session store using Firebase
+const sessionStore = async (sessionId) => {
+  const docRef = sessionsCollection.doc(sessionId);
+  const doc = await docRef.get();
+  return doc.exists ? doc.data() : null;
+};
+
+const saveSessionToFirestore = async (sessionId, sessionData) => {
+  await sessionsCollection.doc(sessionId).set(sessionData);
+};
+
+// Session configuration with Firebase store
 app.use(session({
   secret: process.env.SESSION_SECRET || 'oscar-grind-baccarat-tracker-secret',
   resave: false,
@@ -43,6 +54,10 @@ app.use(session({
   cookie: {
     maxAge: 24 * 60 * 60 * 1000,
     secure: process.env.NODE_ENV === 'production'
+  },
+  store: {
+    get: sessionStore,
+    set: saveSessionToFirestore
   }
 }));
 
@@ -117,13 +132,11 @@ app.get('/session', async (req, res) => {
     return res.redirect('/');
   }
 
-  const doc = await sessionsCollection.doc(req.session.sessionId).get();
-  if (!doc.exists) {
+  const session = await sessionStore(req.session.sessionId);
+  if (!session) {
     req.session.flash = { warning: 'Session not found. Please start a new session.' };
     return res.redirect('/');
   }
-
-  const session = doc.data();
 
   if (session.current_bankroll - session.starting_bankroll >= session.profit_target) {
     req.session.flash = { success: `You've reached your profit target of $${session.profit_target.toFixed(2)}!` };
@@ -204,7 +217,7 @@ app.post('/session', async (req, res) => {
   session.round_number += 1;
   session.current_bet = nextBet;
 
-  await docRef.set(session);
+  await saveSessionToFirestore(req.session.sessionId, session);
 
   req.session.flash = {
     [result === 'win' ? 'success' : 'info']:
