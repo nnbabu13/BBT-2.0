@@ -55,7 +55,12 @@ app.get("/", (req, res) => {
     if (req.session.sessionId) return res.redirect("/session");
     res.render("index");
 });
+
 app.post("/", (req, res) => {
+    if(!req.body){
+        req.session.flash = { danger: 'Please enter valid inputs.' };
+        return res.redirect('/');
+    }
     const starting_bankroll = parseFloat(req.body.starting_bankroll);
     const base_bet = parseFloat(req.body.base_bet);
     const profit_target = parseFloat(req.body.profit_target);
@@ -78,14 +83,15 @@ app.post("/", (req, res) => {
     req.session.flash = { success: "Session started successfully! Good luck!" };
     res.redirect("/session");
 });
+
 app.get("/session", (req, res) => {
-    if (!req.session || !req.session.sessionId) {
+    const session = req.session;
+    if (!session || !session.sessionId) {
         req.session.flash = { warning: "No active session found. Please set up a new session." };
         return res.redirect("/");
     }
-    const session = req.session;
-    if (session.current_bankroll - session.starting_bankroll >= session.profit_target) {
-        req.session.flash = { success: `You've reached your profit target of $${session.profit_target.toFixed(2)}!` };
+      if (session.current_bankroll - session.starting_bankroll >= session.profit_target) {
+      req.session.flash = { success: `You've reached your profit target of $${session.profit_target.toFixed(2)}!` };
     } else if (session.current_bankroll < session.base_bet) {
         req.session.flash = { danger: "Bankroll below base bet. Consider resetting your strategy." };
     }
