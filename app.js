@@ -10,6 +10,7 @@ const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 const admin = require('firebase-admin');
+const { Store } = require('express-session');
 
 // Initialize Express app
 const app = express();
@@ -35,16 +36,34 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Custom session store using Firebase
-const sessionStore = async (sessionId) => {
-  const docRef = sessionsCollection.doc(sessionId);
-  const doc = await docRef.get();
-  return doc.exists ? doc.data() : null;
-};
+// Firestore session store
+class FirestoreStore extends Store {
+  constructor(options = {}) {
+    super(options);
+    this.db = admin.firestore();
+    this.collection = this.db.collection(options.collection || 'sessions');
+  }
 
-const saveSessionToFirestore = async (sessionId, sessionData) => {
-  await sessionsCollection.doc(sessionId).set(sessionData);
-};
+  async get(sid, callback) {
+    try {
+      const doc = await this.collection.doc(sid).get();
+      if (!doc.exists) return callback(null, null);
+      const data = doc.data();
+      callback(null, data);
+    } catch (error) {
+      callback(error);
+    }
+  }
+
+  async set(sid, session, callback) {
+    try {
+      await this.collection.doc(sid).set(session);
+      callback(null);
+    } catch (error) {
+      callback(error);
+    }
+  }
+}
 
 // Session configuration with Firebase store
 app.use(session({
@@ -55,10 +74,7 @@ app.use(session({
     maxAge: 24 * 60 * 60 * 1000,
     secure: process.env.NODE_ENV === 'production'
   },
-  store: {
-    get: sessionStore,
-    set: saveSessionToFirestore
-  }
+  store: new FirestoreStore()
 }));
 
 // Flash message middleware
@@ -126,7 +142,7 @@ app.post('/', async (req, res) => {
   res.redirect('/session');
 });
 
-app.get('/session', async (req, res) => {
+app.get('/session', (req, res) => {
   if (!req.session.sessionId) {
     req.session.flash = { warning: 'No active session found. Please set up a new session.' };
     return res.redirect('/');
@@ -216,8 +232,6 @@ app.post('/session', async (req, res) => {
 
   session.round_number += 1;
   session.current_bet = nextBet;
-
-  await saveSessionToFirestore(req.session.sessionId, session);
 
   req.session.flash = {
     [result === 'win' ? 'success' : 'info']:
