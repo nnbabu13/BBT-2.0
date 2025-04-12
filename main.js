@@ -10,23 +10,9 @@ const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 const admin = require('firebase-admin');
-const { Store } = require('express-session');
 
 // Initialize Express app
 const app = express();
-
-// Initialize Firebase Admin
-let serviceAccount;
-try {
-  serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-} catch (e) {
-  console.error("Error parsing FIREBASE_SERVICE_ACCOUNT environment variable:", e);
-  process.exit(1); // Exit if the configuration is invalid
-}
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
 
 const db = admin.firestore();
 const sessionsCollection = db.collection('betting_sessions');
@@ -42,35 +28,6 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Firestore session store
-class FirestoreStore extends Store {
-  constructor(options = {}) {
-    super(options);
-    this.db = admin.firestore();
-    this.collection = this.db.collection(options.collection || 'sessions');
-  }
-
-  async get(sid, callback) {
-    try {
-      const doc = await this.collection.doc(sid).get();
-      if (!doc.exists) return callback(null, null);
-      const data = doc.data();
-      callback(null, data);
-    } catch (error) {
-      callback(error);
-    }
-  }
-
-  async set(sid, session, callback) {
-    try {
-      await this.collection.doc(sid).set(session);
-      callback(null);
-    } catch (error) {
-      callback(error);
-    }
-  }
-}
-
 // Session configuration with Firebase store
 app.use(session({
   secret: process.env.SESSION_SECRET || 'oscar-grind-baccarat-tracker-secret',
@@ -79,8 +36,7 @@ app.use(session({
   cookie: {
     maxAge: 24 * 60 * 60 * 1000,
     secure: process.env.NODE_ENV === 'production'
-  },
-  store: new FirestoreStore()
+  }
 }));
 
 // Flash message middleware
