@@ -22,6 +22,7 @@ app.use(cookieSession({
     keys: [process.env.SESSION_SECRET || "oscar-grind-baccarat-tracker-secret"], // Use an array of keys for security
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     secure: process.env.NODE_ENV === "production", // Set to true in production if using HTTPS
+    secureProxy: true, // Required for Render.com (and other reverse proxies)
 }));
 // Flash message middleware
 app.use(function (req, res, next) {
