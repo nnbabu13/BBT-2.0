@@ -28,11 +28,13 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "..", "public")));
 // Routes
+
+
 app.get("/", (req, res) => {
     if (req.session.sessionId) {
         return res.redirect("/session");
     }
-    res.render("index", { flash: req.flash });
+    res.render("index", { flash: req.session.flash });
 });
 app.post("/", (req, res) => {
     console.log('Headers:', req.headers); console.log('Session data:', req.session);
@@ -40,7 +42,7 @@ app.post("/", (req, res) => {
         req.flash = { danger: 'Please enter valid inputs.' };
         return res.redirect('/');
     }
-    const starting_bankroll = parseFloat(req.body.starting_bankroll);
+        const starting_bankroll = parseFloat(req.body.starting_bankroll);
     const base_bet = parseFloat(req.body.base_bet);
     const profit_target = parseFloat(req.body.profit_target);
     if (isNaN(starting_bankroll) || starting_bankroll <= 0 ||
@@ -56,8 +58,8 @@ app.post("/", (req, res) => {
         req.session.base_bet = base_bet;
         req.session.profit_target = profit_target;
         req.session.current_bet = base_bet;
-        req.session.round_number = 1;
-        req.session.bet_history = [];
+            req.session.round_number = 1;
+            req.session.bet_history = [];
     req.flash = { success: "Session started successfully! Good luck!" };
     res.redirect("/session");
 });
@@ -69,7 +71,7 @@ app.get("/session", (req, res) => {
         return res.redirect("/");
     }
         const net_profit = session.current_bankroll - session.starting_bankroll;
-    res.render("session", { ...session, net_profit, flash: req.flash });
+    res.render("session", { ...session, net_profit, flash: req.session.flash });
 });
 app.post("/session", (req, res) => {
     if (!req.session.sessionId) {
@@ -119,7 +121,7 @@ app.post("/session", (req, res) => {
     session.round_number += 1;
     session.current_bet = nextBet;
     let flashType = result === "win" ? "success" : "info";
-    let flashMessage = `${result === "win" ? "You won" : "You lost"} $${bet_amount.toFixed(2)}. Current bankroll: $${session.current_bankroll.toFixed(2)}.`;
+            let flashMessage = `${result === "win" ? "You won" : "You lost"} $${bet_amount.toFixed(2)}. Current bankroll: $${session.current_bankroll.toFixed(2)}.`;
     req.flash = { [flashType]: flashMessage };
     res.redirect("/session");
 });
@@ -128,13 +130,13 @@ app.post("/reset", (req, res) => {
         req.session = null;
     }
         
-    
-    
-    
     req.flash = { info: "Your session has been reset." };
     res.redirect("/");
 });
+
 // Error handling
+
+
 app.use(function (req, res, next) {
     res.status(404).render("index", { error: "Page not found" });
 });
@@ -142,6 +144,11 @@ app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).render('index', { error: 'Something went wrong!' });
 });
+
+// Clear flash middleware
+
+
+app.use((req, res, next) => { req.session.flash = null; next(); });
 // Oscar Grind strategy calculation
 function calculateNextBet(currentBankroll, highestBankroll, baseBet, lastBet, lastResult) {
     if (!lastBet || !lastResult) return baseBet;
