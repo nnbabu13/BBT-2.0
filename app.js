@@ -142,14 +142,7 @@ app.post('/', async (req, res) => {
   res.redirect('/session');
 });
 
-app.get('/session', (req, res) => {
-  if (!req.session.sessionId) {
-    req.session.flash = { warning: 'No active session found. Please set up a new session.' };
-    return res.redirect('/');
-  }
-
-  const session = await sessionStore(req.session.sessionId);
-  if (!session) {
+app.get('/session', async (req, res) => {
     req.session.flash = { warning: 'Session not found. Please start a new session.' };
     return res.redirect('/');
   }
@@ -162,8 +155,8 @@ app.get('/session', (req, res) => {
     req.session.flash = { danger: 'Bankroll below base bet. Consider resetting your strategy.' };
   }
 
-  const net_profit = session.current_bankroll - session.starting_bankroll;
-  res.render('session', { ...session, net_profit });
+  const net_profit = req.session.current_bankroll - req.session.starting_bankroll;
+  res.render('session', { ...req.session, net_profit });
 });
 
 app.post('/session', async (req, res) => {
