@@ -9,13 +9,11 @@ const session = require('express-session');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
-const admin = require('firebase-admin');
 
 // Initialize Express app
 const app = express();
 
-const db = admin.firestore();
-const sessionsCollection = db.collection('betting_sessions');
+
 
 // Configure view engine
 app.set('view engine', 'ejs');
@@ -71,12 +69,12 @@ function calculateNextBet(currentBankroll, highestBankroll, baseBet, lastBet, la
 
 // Routes
 app.get('/', (req, res) => {
-  if (req.session.sessionId) return res.redirect('/session');
+    if (req.session.bettingSession) return res.redirect('/session');
   res.render('index');
 });
 
-app.post('/', async (req, res) => {
-  const starting_bankroll = parseFloat(req.body.starting_bankroll);
+app.post('/', (req, res) => {
+    const starting_bankroll = parseFloat(req.body.starting_bankroll);
   const base_bet = parseFloat(req.body.base_bet);
   const profit_target = parseFloat(req.body.profit_target);
 
@@ -97,14 +95,14 @@ app.post('/', async (req, res) => {
     round_number: 1,
     bet_history: []
   };
-
-  const docRef = await sessionsCollection.add(bettingSession);
-  req.session.sessionId = docRef.id;
+  
+    req.session.sessionId = Date.now().toString();
+    req.session.bettingSession = bettingSession;
   req.session.flash = { success: 'Session started successfully! Good luck!' };
   res.redirect('/session');
-});
+    });
 
-app.get('/session', async (req, res) => {
+app.get('/session', (req, res) => {
   if (!req.session || !req.session.sessionId) {
       req.session.flash = { warning: 'No active session found. Please set up a new session.' };
     return res.redirect('/');
@@ -116,22 +114,17 @@ app.get('/session', async (req, res) => {
   } else if (session.current_bankroll < session.base_bet) {
     req.session.flash = { danger: 'Bankroll below base bet. Consider resetting your strategy.' };
   }
+  
+  const bettingSession = req.session.bettingSession;
 
-  const net_profit = session.current_bankroll - session.starting_bankroll;
-  res.render('session', { ...session, net_profit });
+  const net_profit = bettingSession.current_bankroll - bettingSession.starting_bankroll;
+  res.render('session', { ...bettingSession, net_profit });
 });
 
-app.post('/session', async (req, res) => {
+app.post('/session', (req, res) => {
   if (!req.session.sessionId) {
-    req.session.flash = { warning: 'No active session found. Please set up a new session.' };
-    return res.redirect('/');
-  }
-
-  const docRef = sessionsCollection.doc(req.session.sessionId);
-  const doc = await docRef.get();
-  if (!doc.exists) {
-    req.session.flash = { warning: 'Session not found. Please start a new session.' };
-    return res.redirect('/');
+        req.session.flash = { warning: 'No active session found. Please set up a new session.' };
+        return res.redirect('/');
   }
 
   const session = doc.data();
@@ -188,17 +181,18 @@ app.post('/session', async (req, res) => {
   session.round_number += 1;
   session.current_bet = nextBet;
 
+  req.session.bettingSession = session;
+
   req.session.flash = {
     [result === 'win' ? 'success' : 'info']:
       `${result === 'win' ? 'You won' : 'You lost'} $${bet_amount.toFixed(2)}. Current bankroll: $${session.current_bankroll.toFixed(2)}.`
   };
-
+  
   res.redirect('/session');
 });
 
 app.post('/reset', async (req, res) => {
   if (req.session.sessionId) {
-    await sessionsCollection.doc(req.session.sessionId).delete();
     delete req.session.sessionId;
   }
   req.session.flash = { info: 'Your session has been reset.' };
