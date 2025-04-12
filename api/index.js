@@ -55,9 +55,7 @@ app.post("/", (req, res) => {
   console.log("Session data:", req.session);
   if (!req.body) {
     req.session.messages = { danger: "Please enter valid inputs." };
-    return res.redirect(
-      '/',
-    );
+    return res.redirect('/');
   }
   
   const starting_bankroll = parseFloat(req.body.starting_bankroll);
@@ -72,10 +70,8 @@ app.post("/", (req, res) => {
     isNaN(profit_target) ||
     profit_target <= 0
     ) {
-      req.session.messages = { danger: "Please enter valid inputs." };
-      return res.redirect(
-        '/',
-      );
+    req.session.messages = { danger: "Please enter valid inputs." };
+    return res.redirect('/');
   }
 
   req.session.sessionId = Math.random().toString(36).substring(2, 9);
@@ -98,9 +94,7 @@ app.get("/session", (req, res) => {
         req.session.messages = {
             warning: "No active session found. Please set up a new session.",
         };
-      return res.redirect(
-        '/',
-      );
+      return res.redirect('/');
     }
     const net_profit = session.current_bankroll - session.starting_bankroll;
     let messages = {};
@@ -116,9 +110,7 @@ app.post("/session", (req, res) => {
       req.session.messages = {
         warning: "No active session found. Please set up a new session.",
       };
-      return res.redirect(
-        '/',
-      );
+      return res.redirect('/');
     }
   
     const session = req.session;
@@ -131,9 +123,7 @@ app.post("/session", (req, res) => {
       !["win", "loss"].includes(result)
     ) {
       req.session.messages = { danger: "Invalid input." };
-      return res.redirect(
-        '/session',
-      );
+      return res.redirect('/session');
     }
   
 
@@ -145,9 +135,8 @@ app.post("/session", (req, res) => {
       danger: `Bet must be a multiple of base bet ($${session.base_bet.toFixed(
         2
       )}).`,
-    };
-    return res.redirect(
-      '/session',
+      };
+    return res.redirect('/session'
     );
   }
 
@@ -189,8 +178,7 @@ app.post("/session", (req, res) => {
   let flashMessage = `${
     result === "win" ? "You won" : "You lost"
   } $${bet_amount.toFixed(2)}. Current bankroll: $${session.current_bankroll.toFixed(
-    2
-    )}.`;
+    2)}.`;
   req.session.messages = { [flashType]: flashMessage };
   res.redirect(
     '/session',
