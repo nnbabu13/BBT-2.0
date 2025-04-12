@@ -34,13 +34,21 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "..", "public")));
 
+// Middleware to clear flash messages
+const clearFlash = (req, res, next) => {
+  req.session.flash = null;
+  next();
+};
+
 // Routes
-app.get("/", (req, res) => {
+app.get("/", clearFlash, (req, res) => {
   if (req.session.sessionId) {
     return res.redirect("/session");
   }
   const data = {};
-  if (req.session.flash) data.flash = req.session.flash;
+  if (req.session.flash) {
+    data.flash = req.session.flash;
+  }
   res.render("index", data);
 });
 
@@ -80,7 +88,7 @@ app.post("/", (req, res) => {
   res.redirect("/session");
 });
 
-app.get("/session", (req, res) => {
+app.get("/session", clearFlash, (req, res) => {
   const session = req.session;
   console.log("Session data:", req.session);
   if (!session || !session.sessionId) {
@@ -89,9 +97,11 @@ app.get("/session", (req, res) => {
     };
     return res.redirect("/");
   }
-  const net_profit = session.current_bankroll - session.starting_bankroll;
+   const net_profit = session.current_bankroll - session.starting_bankroll;
   const data = { ...session, net_profit };
-  if (req.session.flash) data.flash = req.session.flash;
+  if (req.session.flash) {
+    data.flash = req.session.flash;
+  }
   res.render("session", data);
 });
 
@@ -193,12 +203,6 @@ app.use(function (req, res, next) {
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).render("index", { error: "Something went wrong!" });
-});
-
-// Clear flash middleware
-app.use((req, res, next) => {
-  req.session.flash = null;
-  next();
 });
 
 // Oscar Grind strategy calculation
