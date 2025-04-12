@@ -150,14 +150,14 @@ app.post("/session", (req, res) => {
     
     session.round_number += 1;
     session.current_bet = nextBet;
-    let flashMessage = {}; 
+    let flashMessage = {};
     if (result === "win") {
       flashMessage.success = `You won $${bet_amount.toFixed(2)}. Current bankroll: $${session.current_bankroll.toFixed(2)}.`;
-    } else { 
+    } else {
       flashMessage.info = `You lost $${bet_amount.toFixed(2)}. Current bankroll: $${session.current_bankroll.toFixed(2)}.`;
-    } 
-    req.session.flash = flashMessage; 
-    
+    }
+    req.session.flash = flashMessage;
+
     res.redirect("/session");
 });
 app.post("/reset", (req, res) => {
