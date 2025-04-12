@@ -150,10 +150,13 @@ app.post("/session", (req, res) => {
     
     session.round_number += 1;
     session.current_bet = nextBet;
-    req.session.flash = {
-        [result === "win" ? "success" : "info"]:\
-        `${result === "win" ? "You won" : "You lost"} $${bet_amount.toFixed(2)}. Current bankroll: $${session.current_bankroll.toFixed(2)}.`
-    };
+    let flashMessage = {}; 
+    if (result === "win") {
+      flashMessage.success = `You won $${bet_amount.toFixed(2)}. Current bankroll: $${session.current_bankroll.toFixed(2)}.`;
+    } else { 
+      flashMessage.info = `You lost $${bet_amount.toFixed(2)}. Current bankroll: $${session.current_bankroll.toFixed(2)}.`;
+    } 
+    req.session.flash = flashMessage; 
     
     res.redirect("/session");
 });
