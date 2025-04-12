@@ -56,7 +56,7 @@ app.get("/", (req, res) => {
     res.render("index");
 });
 app.post("/", (req, res) => {
-    console.log('Headers:', req.headers);
+    console.log('Headers:', req.headers); console.log('Session data:', req.session);
     if (!req.body) {
         req.session.flash = { danger: 'Please enter valid inputs.' };
         return res.redirect('/');
