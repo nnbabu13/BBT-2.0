@@ -1,4 +1,5 @@
-// Load environment variables
+// Load environment variables first!
+const dotenv = require('dotenv');
 dotenv.config();
 
 // Import required packages
