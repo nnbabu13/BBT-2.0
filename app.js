@@ -9,7 +9,6 @@ const session = require('express-session');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
-const dotenv = require('dotenv');
 const admin = require('firebase-admin');
 
 // Initialize Express app
