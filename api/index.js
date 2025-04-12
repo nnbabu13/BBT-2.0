@@ -19,13 +19,13 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "..", "public")));
-app.use(cookieSession({
-    name: "session",
-    keys: [process.env.SESSION_SECRET || "oscar-grind-baccarat-tracker-secret"], // Use an array of keys for security
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    secure: process.env.NODE_ENV === "production", // Set to true in production if using HTTPS
-    secureProxy: true // Add this line to trust the proxy
-}));
+const sessionConfig = {
+  name: "session",
+  keys: [process.env.SESSION_SECRET || "oscar-grind-baccarat-tracker-secret"],
+  maxAge: 24 * 60 * 60 * 1000,
+  secure: process.env.NODE_ENV === "production",
+  secureProxy: true, // Trust the proxy
+};
 // Flash message middleware
 app.use(function (req, res, next) {
     res.locals.flash = req.session.flash || {};
