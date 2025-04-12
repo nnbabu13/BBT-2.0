@@ -18,17 +18,20 @@ app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "..", "views"));
 
 // Middleware
-app.use(express.urlencoded({ extended: true }));
-app.use(logger("dev"));
 app.use(
-  (req, res, next) => { console.log("cookieSession:", req.session); next(); },
-  cookieSession({
+  express.urlencoded({ extended: true }),
+  logger("dev"),
+  cookieSession({    
     name: "session",
     keys: [process.env.SESSION_SECRET || "oscar-grind-baccarat-tracker-secret"],
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     secure: process.env.NODE_ENV === "production",
     secureProxy: true,
-  })
+  }),
+  (req, res, next) => { 
+    console.log("cookieSession:", req.session); 
+    next(); 
+  },
 );
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -44,23 +47,23 @@ const clearMessages = (req, res, next) => {
   next();
 };
 
-// Routes
+// Routes 
 app.get("/", clearMessages, (req, res) => {
   if (req.session.sessionId) {
     return res.redirect("/session");
   }
-  let messages = {};
+  const data = {};
   if (req.session.messages) {
-    messages = req.session.messages;
-    req.session.messages = null; 
+    data.messages = req.session.messages;
   }
-  res.render("index", {messages});
+  res.render("index", data);
 });
+
 
 app.post("/", (req, res) => {
   console.log("req.body:", req.body);
   console.log("Headers:", req.headers);
-  console.log("Session data:", req.session);
+  console.log("Session data:", req.session);  
   if (!req.body) {
     req.session.messages = { danger: "Please enter valid inputs." };    return res.redirect('/');
   }
@@ -102,13 +105,13 @@ app.get("/session", clearMessages, (req, res) => {
         };
       return res.redirect('/');
     }
-    const net_profit = session.current_bankroll - session.starting_bankroll;
-    let messages = {};    
-    if (req.session.messages) {
-      messages = req.session.messages;      
-    }
-    res.render("session", { ...session, net_profit, messages });
-  });
+  const net_profit = session.current_bankroll - session.starting_bankroll;
+  const data = { ...session, net_profit };
+  if (req.session.messages) {
+    data.messages = req.session.messages;
+  }
+  res.render("session", data);
+});
 
 app.post("/session", (req, res) => {
     if (!req.session.sessionId) {
