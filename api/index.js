@@ -21,6 +21,7 @@ app.set("views", path.join(__dirname, "..", "views"));
 app.use(express.urlencoded({ extended: true }));
 app.use(logger("dev"));
 app.use(
+  (req, res, next) => { console.log("cookieSession:", req.session); next(); },
   cookieSession({
     name: "session",
     keys: [process.env.SESSION_SECRET || "oscar-grind-baccarat-tracker-secret"],
@@ -34,11 +35,17 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "..", "public")));
 
-// Middleware to clear flash messages
-
+// Middleware to clear messages
+const clearMessages = (req, res, next) => {
+  console.log("clearMessages:", req.session);
+  if (req.session.messages) {
+    req.session.messages = null;
+  }
+  next();
+};
 
 // Routes
-app.get("/", (req, res) => {
+app.get("/", clearMessages, (req, res) => {
   if (req.session.sessionId) {
     return res.redirect("/session");
   }
@@ -51,11 +58,11 @@ app.get("/", (req, res) => {
 });
 
 app.post("/", (req, res) => {
+  console.log("req.body:", req.body);
   console.log("Headers:", req.headers);
   console.log("Session data:", req.session);
   if (!req.body) {
-    req.session.messages = { danger: "Please enter valid inputs." };
-    return res.redirect('/');
+    req.session.messages = { danger: "Please enter valid inputs." };    return res.redirect('/');
   }
   
   const starting_bankroll = parseFloat(req.body.starting_bankroll);
@@ -68,8 +75,7 @@ app.post("/", (req, res) => {
     isNaN(base_bet) ||
     base_bet <= 0 ||
     isNaN(profit_target) ||
-    profit_target <= 0
-    ) {
+    profit_target <= 0) {
     req.session.messages = { danger: "Please enter valid inputs." };
     return res.redirect('/');
   }
@@ -87,7 +93,7 @@ app.post("/", (req, res) => {
   res.redirect("/session");
 });
 
-app.get("/session", (req, res) => {
+app.get("/session", clearMessages, (req, res) => {
     const session = req.session;
     console.log("Session data:", req.session);
     if (!session || !session.sessionId) {
@@ -97,10 +103,9 @@ app.get("/session", (req, res) => {
       return res.redirect('/');
     }
     const net_profit = session.current_bankroll - session.starting_bankroll;
-    let messages = {};
+    let messages = {};    
     if (req.session.messages) {
-      messages = req.session.messages;
-      req.session.messages = null;
+      messages = req.session.messages;      
     }
     res.render("session", { ...session, net_profit, messages });
   });
@@ -130,10 +135,8 @@ app.post("/session", (req, res) => {
   const isDivisible =
     Math.abs(Math.round(bet_amount / session.base_bet) - (bet_amount / session.base_bet)) < 0.0001;
 
-  if (!isDivisible) {
-    req.session.flash = {
-      danger: `Bet must be a multiple of base bet ($${session.base_bet.toFixed(
-        2
+  if (!isDivisible) {    req.session.flash = {
+      danger: `Bet must be a multiple of base bet ($${session.base_bet.toFixed(2
       )}).`,
       };
     return res.redirect('/session'
