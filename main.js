@@ -16,7 +16,13 @@ const { Store } = require('express-session');
 const app = express();
 
 // Initialize Firebase Admin
-const serviceAccount = require('./firebaseServiceAccount.json');
+let serviceAccount;
+try {
+  serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+} catch (e) {
+  console.error("Error parsing FIREBASE_SERVICE_ACCOUNT environment variable:", e);
+  process.exit(1); // Exit if the configuration is invalid
+}
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
