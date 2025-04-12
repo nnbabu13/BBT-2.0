@@ -1,6 +1,5 @@
 // Load environment variables
 dotenv.config();
-app.use(express.static(path.join(__dirname, 'public'))); // serves CSS/JS
 
 // Import required packages
 const express = require('express');
