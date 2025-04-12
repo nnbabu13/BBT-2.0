@@ -33,6 +33,19 @@ This application is ready for deployment to Vercel. Follow these steps:
 4. Deploy the application
 5. Access your application using the provided Vercel URL
 
+## Deployment to Render.com
+
+To deploy this application on Render.com, follow these steps:
+
+1.  Create a new Web Service on Render.com.
+2.  Connect your GitHub repository that contains the application code.
+3.  In the settings for the new Web Service:
+    *   Set the **Build Command** to `npm install`.
+    *   Set the **Start Command** to `npm start`.
+    *   Add an environment variable named `PORT` and set its value to a port number (e.g., `3000`). Render will automatically assign a port if you do not provide one, but setting one explicitly is recommended.
+4.  Deploy the application.
+5.  Access your application using the Render.com URL provided after deployment.
+
 ## Local Development
 
 To run this application locally:
@@ -41,5 +54,5 @@ To run this application locally:
 2. Install dependencies
 3. Create a .env file with required variables
 4. Start the development server
-5. Access the application at http://localhost:5000
+5. Access the application at http://localhost:3000
 "# BBT-2.0" 
