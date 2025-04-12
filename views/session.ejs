@@ -1,0 +1,83 @@
+ejs
+<%- include('partials/header') %>
+
+<div class="container">
+    <h1>Session Details</h1>
+
+    <!-- Display Flash Messages -->
+    <% if (flash && Object.keys(flash).length > 0) { %>
+        <% Object.keys(flash).forEach(function(type) { %>
+            <div class="alert alert-<%= type %> alert-dismissible fade show" role="alert">
+                <%= flash[type] %>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        <% }); %>
+    <% } %>
+
+    <div class="mb-4">
+        <p><strong>Session ID:</strong> <%= sessionId %></p>
+        <p><strong>Starting Bankroll:</strong> $<%= starting_bankroll.toFixed(2) %></p>
+        <p><strong>Current Bankroll:</strong> $<%= current_bankroll.toFixed(2) %></p>
+        <p><strong>Highest Bankroll:</strong> $<%= highest_bankroll.toFixed(2) %></p>
+        <p><strong>Base Bet:</strong> $<%= base_bet.toFixed(2) %></p>
+        <p><strong>Profit Target:</strong> $<%= profit_target.toFixed(2) %></p>
+        <p><strong>Net Profit:</strong> $<%= net_profit.toFixed(2) %></p>
+        <p><strong>Current Bet:</strong> $<%= current_bet.toFixed(2) %></p>
+    </div>
+
+    <h2>Bet History</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Round</th>
+                <th>Bet</th>
+                <th>Result</th>
+                <th>Profit/Loss</th>
+                <th>Bankroll</th>
+                <th>Next Bet</th>
+                <th>Followed Suggestion</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% if (bet_history && bet_history.length > 0) { %>
+                <% bet_history.forEach(function(round) { %>
+                    <tr>
+                        <td><%= round.round %></td>
+                        <td>$<%= round.bet_amount.toFixed(2) %></td>
+                        <td><%= round.result %></td>
+                        <td>$<%= round.profit_loss.toFixed(2) %></td>
+                        <td>$<%= round.bankroll.toFixed(2) %></td>
+                        <td>$<%= round.next_bet.toFixed(2) %></td>
+                        <td><%= round.followed_suggestion %></td>
+                    </tr>
+                <% }) %>
+            <% } else { %>
+                <tr>
+                    <td colspan="7">No rounds yet.</td>
+                </tr>
+            <% } %>
+        </tbody>
+    </table>
+
+    <h2 class="mt-4">Submit New Round</h2>
+    <form method="POST" action="/session">
+        <div class="mb-3">
+            <label for="bet_amount" class="form-label">Bet Amount</label>
+            <input type="number" class="form-control" id="bet_amount" name="bet_amount" required>
+        </div>
+        <div class="mb-3">
+            <label for="result" class="form-label">Result</label>
+            <select class="form-select" id="result" name="result" required>
+                <option value="win">Win</option>
+                <option value="loss">Loss</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Submit Round</button>
+    </form>
+
+    <form method="POST" action="/reset" class="mt-4">
+        <button type="submit" class="btn btn-danger">Reset Session</button>
+    </form>
+</div>
+
+<%- include('partials/footer') %>
