@@ -1,3 +1,7 @@
+// Load environment variables
+dotenv.config();
+app.use(express.static(path.join(__dirname, 'public'))); // serves CSS/JS
+
 // Import required packages
 const express = require('express');
 const path = require('path');
@@ -6,10 +10,6 @@ const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 const dotenv = require('dotenv');
-
-// Load environment variables
-dotenv.config();
-app.use(express.static(path.join(__dirname, 'public'))); // serves CSS/JS
 
 // Initialize Express app
 const app = express();
