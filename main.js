@@ -3,7 +3,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 // Import required packages
-const express = require('express');
+ const express = require('express');
 const path = require('path');
 const session = require('express-session');
 const bodyParser = require('body-parser');
@@ -25,14 +25,13 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
-
-// Session configuration with Firebase store
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'oscar-grind-baccarat-tracker-secret',
-  resave: false,
-  saveUninitialized: false,
+    name: 'session',
+    secret: process.env.SESSION_SECRET || 'oscar-grind-baccarat-tracker-secret',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
   cookie: {
-    maxAge: 24 * 60 * 60 * 1000,
+      secure: false,
     secure: process.env.NODE_ENV === 'production'
   }
 }));
@@ -69,7 +68,7 @@ function calculateNextBet(currentBankroll, highestBankroll, baseBet, lastBet, la
 
 // Routes
 app.get('/', (req, res) => {
-    if (req.session.bettingSession) return res.redirect('/session');
+  if (req.session.bettingSession) return res.redirect('/session');
   res.render('index');
 });
 
@@ -95,14 +94,14 @@ app.post('/', (req, res) => {
     round_number: 1,
     bet_history: []
   };
-  
-    req.session.sessionId = Date.now().toString();
-    req.session.bettingSession = bettingSession;
+
+  req.session.sessionId = Date.now().toString();
+  req.session.bettingSession = bettingSession;
   req.session.flash = { success: 'Session started successfully! Good luck!' };
   res.redirect('/session');
-    });
+});
 
-app.get('/session', (req, res) => {
+app.get('/session',  (req, res) => {
   if (!req.session || !req.session.sessionId) {
       req.session.flash = { warning: 'No active session found. Please set up a new session.' };
     return res.redirect('/');
@@ -110,17 +109,18 @@ app.get('/session', (req, res) => {
   const session = req.session;
 
   if (session.current_bankroll - session.starting_bankroll >= session.profit_target) {
-    req.session.flash = { success: `You've reached your profit target of $${session.profit_target.toFixed(2)}!` };
+      req.session.flash = { success: `You've reached your profit target of $${session.profit_target.toFixed(2)}!` };
   } else if (session.current_bankroll < session.base_bet) {
-    req.session.flash = { danger: 'Bankroll below base bet. Consider resetting your strategy.' };
+      req.session.flash = { danger: 'Bankroll below base bet. Consider resetting your strategy.' };
   }
-  
-  const bettingSession = req.session.bettingSession;
 
-  const net_profit = bettingSession.current_bankroll - bettingSession.starting_bankroll;
-  res.render('session', { ...bettingSession, net_profit });
+    const bettingSession = req.session.bettingSession;
+
+    if (!bettingSession) return res.redirect('/');
+
+    const net_profit = bettingSession.current_bankroll - bettingSession.starting_bankroll;
+    res.render('session', { ...bettingSession, net_profit });
 });
-
 app.post('/session', (req, res) => {
   if (!req.session.sessionId) {
         req.session.flash = { warning: 'No active session found. Please set up a new session.' };
@@ -128,7 +128,7 @@ app.post('/session', (req, res) => {
   }
 
   const session = doc.data();
-  const bet_amount = parseFloat(req.body.bet_amount);
+  const  bet_amount = parseFloat(req.body.bet_amount);
   const result = req.body.result;
 
   if (isNaN(bet_amount) || bet_amount <= 0 || !['win', 'loss'].includes(result)) {
@@ -168,11 +168,9 @@ app.post('/session', (req, res) => {
     result
   );
 
-  session.bet_history.unshift({
-    round: session.round_number,
-    bet_amount,
-    result,
-    profit_loss,
+    session.bet_history.unshift({
+        round: session.round_number,
+        bet_amount, result, profit_loss,
     bankroll: session.current_bankroll,
     next_bet: nextBet,
     followed_suggestion: bet_amount === session.current_bet
@@ -186,7 +184,7 @@ app.post('/session', (req, res) => {
   req.session.flash = {
     [result === 'win' ? 'success' : 'info']:
       `${result === 'win' ? 'You won' : 'You lost'} $${bet_amount.toFixed(2)}. Current bankroll: $${session.current_bankroll.toFixed(2)}.`
-  };
+    };
   
   res.redirect('/session');
 });
@@ -211,6 +209,6 @@ app.use((err, req, res, next) => {
 
 // Start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+ app.listen(PORT, () => {
+     console.log(`Server running on port ${PORT}`);
+   });
