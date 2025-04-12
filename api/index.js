@@ -22,7 +22,7 @@ app.use(cookieSession({
     keys: [process.env.SESSION_SECRET || "oscar-grind-baccarat-tracker-secret"], // Use an array of keys for security
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     secure: process.env.NODE_ENV === "production", // Set to true in production if using HTTPS
-    secureProxy: true, // Required for Render.com (and other reverse proxies)
+    secureProxy: true // Add this line to trust the proxy
 }));
 // Flash message middleware
 app.use(function (req, res, next) {
@@ -56,13 +56,12 @@ app.get("/", (req, res) => {
     if (req.session.sessionId) return res.redirect("/session");
     res.render("index");
 });
-
 app.post("/", (req, res) => {
+    console.log('Headers:', req.headers);
     if(!req.body){
         req.session.flash = { danger: 'Please enter valid inputs.' };
         return res.redirect('/');
     }
-    console.log('Headers:', req.headers);
     const starting_bankroll = parseFloat(req.body.starting_bankroll);
     const base_bet = parseFloat(req.body.base_bet);
     const profit_target = parseFloat(req.body.profit_target);
@@ -85,16 +84,16 @@ app.post("/", (req, res) => {
     req.session.flash = { success: "Session started successfully! Good luck!" };
     res.redirect("/session");
 });
-
 app.get("/session", (req, res) => {
-  const session = req.session;
-  console.log('Session data:', req.session);
-  if (!session || !session.sessionId) {
-    req.session.flash = { warning: "No active session found. Please set up a new session." };
-    return res.redirect("/");
-  }
-  const net_profit = (session.current_bankroll || 0) - (session.starting_bankroll || 0);
-  res.render("session", { ...session, net_profit });
+    const session = req.session;
+    console.log('Session data:', req.session);
+    if (!session || !session.sessionId) {
+        req.session.flash = { warning: "No active session found. Please set up a new session." };
+        return res.redirect("/");
+    }
+    
+    const net_profit = session.current_bankroll - session.starting_bankroll;
+    res.render("session", { ...session, net_profit });
 });
 app.post("/session", (req, res) => {
     if (!req.session.sessionId) {
@@ -152,7 +151,7 @@ app.post("/session", (req, res) => {
     session.round_number += 1;
     session.current_bet = nextBet;
     req.session.flash = {
-        [result === "win" ? "success" : "info"]:
+        [result === "win" ? "success" : "info"]:\
         `${result === "win" ? "You won" : "You lost"} $${bet_amount.toFixed(2)}. Current bankroll: $${session.current_bankroll.toFixed(2)}.`
     };
     
@@ -173,9 +172,4 @@ app.use(function (req, res, next) {
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).render('index', { error: 'Something went wrong!' });
-});
-// Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
 });
