@@ -1,18 +1,28 @@
-// Load .env variables first
-const dotenv = require('dotenv');
-dotenv.config(); // ✅ immediately after importing dotenv
+// Load environment variables
+dotenv.config();
 
-// Then other packages
+// Import required packages
 const express = require('express');
 const path = require('path');
 const session = require('express-session');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
-
+const dotenv = require('dotenv');
+const admin = require('firebase-admin');
 
 // Initialize Express app
 const app = express();
+
+// Initialize Firebase Admin
+const serviceAccount = require('./firebaseServiceAccount.json');
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
+const db = admin.firestore();
+const sessionsCollection = db.collection('betting_sessions');
 
 // Configure view engine
 app.set('view engine', 'ejs');
@@ -25,23 +35,16 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Session configuration
-const MongoStore = require('connect-mongo');
-
+// Session configuration (in-memory)
 app.use(session({
   secret: process.env.SESSION_SECRET || 'oscar-grind-baccarat-tracker-secret',
   resave: false,
   saveUninitialized: false,
-  store: MongoStore.create({
-    mongoUrl: process.env.MONGO_URI,
-    ttl: 14 * 24 * 60 * 60, // 14 days
-  }),
-  cookie: { 
+  cookie: {
     maxAge: 24 * 60 * 60 * 1000,
     secure: process.env.NODE_ENV === 'production'
   }
 }));
-
 
 // Flash message middleware
 app.use((req, res, next) => {
@@ -50,79 +53,48 @@ app.use((req, res, next) => {
   next();
 });
 
-// Oscar Grind strategy calculation functions
+// Oscar Grind strategy calculation
 function calculateNextBet(currentBankroll, highestBankroll, baseBet, lastBet, lastResult) {
-  // Base case: always start with base bet
-  if (!lastBet || !lastResult) {
-    return baseBet;
-  }
-  
+  if (!lastBet || !lastResult) return baseBet;
+
   const threshold = highestBankroll + parseFloat(baseBet);
-  
   if (lastResult === 'win') {
-    // If we've already reached the highest bankroll + 1 unit threshold, reset to base bet
-    if (currentBankroll >= threshold) {
-      return baseBet;
-    }
-    
-    // Calculate standard progression (increase by 1 unit after a win)
+    if (currentBankroll >= threshold) return baseBet;
+
     const standardNextBet = parseFloat(lastBet) + parseFloat(baseBet);
-    
-    // Calculate potential bankroll if we win with standard next bet
     const potentialBankroll = currentBankroll + standardNextBet;
-    
-    // If potential win would exceed threshold, adjust bet to hit threshold exactly
+
     if (potentialBankroll > threshold) {
-      // Calculate the exact bet needed to reach the threshold
       const adjustedBet = threshold - currentBankroll;
-      
-      // Ensure the bet is a multiple of base bet (round down)
       const multiplier = Math.floor(adjustedBet / baseBet);
       return Math.max(baseBet, multiplier * baseBet);
     }
-    
+
     return standardNextBet;
   } else {
-    // After a loss, maintain the same bet amount
     return parseFloat(lastBet);
   }
 }
 
 // Routes
-// Index page - Setup form
 app.get('/', (req, res) => {
-  // Check if session already exists
-  if (req.session.betting_session) {
-    return res.redirect('/session');
-  }
-  
+  if (req.session.sessionId) return res.redirect('/session');
   res.render('index');
 });
 
-// Process setup form
-app.post('/', (req, res) => {
+app.post('/', async (req, res) => {
   const starting_bankroll = parseFloat(req.body.starting_bankroll);
   const base_bet = parseFloat(req.body.base_bet);
   const profit_target = parseFloat(req.body.profit_target);
-  
-  // Validate inputs
-  if (isNaN(starting_bankroll) || starting_bankroll <= 0) {
-    req.session.flash = { danger: 'Please enter a valid starting bankroll.' };
+
+  if (isNaN(starting_bankroll) || starting_bankroll <= 0 ||
+      isNaN(base_bet) || base_bet <= 0 ||
+      isNaN(profit_target) || profit_target <= 0) {
+    req.session.flash = { danger: 'Please enter valid inputs.' };
     return res.redirect('/');
   }
-  
-  if (isNaN(base_bet) || base_bet <= 0) {
-    req.session.flash = { danger: 'Please enter a valid base bet amount.' };
-    return res.redirect('/');
-  }
-  
-  if (isNaN(profit_target) || profit_target <= 0) {
-    req.session.flash = { danger: 'Please enter a valid profit target.' };
-    return res.redirect('/');
-  }
-  
-  // Initialize betting session
-  req.session.betting_session = {
+
+  const bettingSession = {
     starting_bankroll,
     current_bankroll: starting_bankroll,
     highest_bankroll: starting_bankroll,
@@ -132,77 +104,72 @@ app.post('/', (req, res) => {
     round_number: 1,
     bet_history: []
   };
-  
+
+  const docRef = await sessionsCollection.add(bettingSession);
+  req.session.sessionId = docRef.id;
   req.session.flash = { success: 'Session started successfully! Good luck!' };
   res.redirect('/session');
 });
 
-// Session page - Betting interface
-app.get('/session', (req, res) => {
-  // Check if session exists
-  if (!req.session.betting_session) {
+app.get('/session', async (req, res) => {
+  if (!req.session.sessionId) {
     req.session.flash = { warning: 'No active session found. Please set up a new session.' };
     return res.redirect('/');
   }
-  
-  const session = req.session.betting_session;
-  
-  // Check if profit target reached
+
+  const doc = await sessionsCollection.doc(req.session.sessionId).get();
+  if (!doc.exists) {
+    req.session.flash = { warning: 'Session not found. Please start a new session.' };
+    return res.redirect('/');
+  }
+
+  const session = doc.data();
+
   if (session.current_bankroll - session.starting_bankroll >= session.profit_target) {
-    req.session.flash = { success: `Congratulations! You've reached your profit target of $${session.profit_target.toFixed(2)}!` };
+    req.session.flash = { success: `You've reached your profit target of $${session.profit_target.toFixed(2)}!` };
   }
-  
-  // Check if bankrupt
+
   if (session.current_bankroll < session.base_bet) {
-    req.session.flash = { danger: 'Warning: Your bankroll is now below your base bet amount. Consider resetting or adjusting your strategy.' };
+    req.session.flash = { danger: 'Bankroll below base bet. Consider resetting your strategy.' };
   }
-  
-  // Calculate net profit
+
   const net_profit = session.current_bankroll - session.starting_bankroll;
-  
-  res.render('session', {
-    ...session,
-    net_profit
-  });
+  res.render('session', { ...session, net_profit });
 });
 
-// Process bet form
-app.post('/session', (req, res) => {
-  // Check if session exists
-  if (!req.session.betting_session) {
+app.post('/session', async (req, res) => {
+  if (!req.session.sessionId) {
     req.session.flash = { warning: 'No active session found. Please set up a new session.' };
     return res.redirect('/');
   }
-  
-  const session = req.session.betting_session;
+
+  const docRef = sessionsCollection.doc(req.session.sessionId);
+  const doc = await docRef.get();
+  if (!doc.exists) {
+    req.session.flash = { warning: 'Session not found. Please start a new session.' };
+    return res.redirect('/');
+  }
+
+  const session = doc.data();
   const bet_amount = parseFloat(req.body.bet_amount);
   const result = req.body.result;
-  
-  // Validate inputs
-  if (isNaN(bet_amount) || bet_amount <= 0) {
-    req.session.flash = { danger: 'Please enter a valid bet amount.' };
+
+  if (isNaN(bet_amount) || bet_amount <= 0 || !['win', 'loss'].includes(result)) {
+    req.session.flash = { danger: 'Invalid input.' };
     return res.redirect('/session');
   }
-  
-  if (!['win', 'loss'].includes(result)) {
-    req.session.flash = { danger: 'Invalid result selected.' };
-    return res.redirect('/session');
-  }
-  
-  // Check if bet is valid
+
   if (bet_amount > session.current_bankroll) {
-    req.session.flash = { danger: 'Your bet amount exceeds your current bankroll.' };
+    req.session.flash = { danger: 'Bet exceeds current bankroll.' };
     return res.redirect('/session');
   }
-  
-  // Check if bet is a multiple of base bet (with small rounding tolerance)
+
   const isDivisible = Math.abs(Math.round(bet_amount / session.base_bet) - (bet_amount / session.base_bet)) < 0.0001;
   if (!isDivisible) {
-    req.session.flash = { danger: `Your bet amount must be a multiple of your base bet ($${session.base_bet.toFixed(2)}).` };
+    req.session.flash = { danger: `Bet must be a multiple of base bet ($${session.base_bet.toFixed(2)}).` };
     return res.redirect('/session');
   }
-  
-  // Process bet result
+
   let profit_loss = 0;
   if (result === 'win') {
     profit_loss = bet_amount;
@@ -211,13 +178,11 @@ app.post('/session', (req, res) => {
     profit_loss = -bet_amount;
     session.current_bankroll -= bet_amount;
   }
-  
-  // Update highest bankroll if needed
+
   if (session.current_bankroll > session.highest_bankroll) {
     session.highest_bankroll = session.current_bankroll;
   }
-  
-  // Calculate next bet based on Oscar Grind strategy
+
   const nextBet = calculateNextBet(
     session.current_bankroll,
     session.highest_bankroll,
@@ -225,8 +190,7 @@ app.post('/session', (req, res) => {
     bet_amount,
     result
   );
-  
-  // Record bet in history
+
   session.bet_history.unshift({
     round: session.round_number,
     bet_amount,
@@ -236,47 +200,37 @@ app.post('/session', (req, res) => {
     next_bet: nextBet,
     followed_suggestion: bet_amount === session.current_bet
   });
-  
-  // Update session
+
   session.round_number += 1;
   session.current_bet = nextBet;
-  
-  // Save session
-  req.session.betting_session = session;
-  
-  // Add appropriate flash message
-  if (result === 'win') {
-    req.session.flash = { success: `Congratulations! You won $${bet_amount.toFixed(2)}. Your bankroll is now $${session.current_bankroll.toFixed(2)}.` };
-  } else {
-    req.session.flash = { info: `You lost $${bet_amount.toFixed(2)}. Your bankroll is now $${session.current_bankroll.toFixed(2)}.` };
-  }
-  
+
+  await docRef.set(session);
+
+  req.session.flash = {
+    [result === 'win' ? 'success' : 'info']:
+      `${result === 'win' ? 'You won' : 'You lost'} $${bet_amount.toFixed(2)}. Current bankroll: $${session.current_bankroll.toFixed(2)}.`
+  };
+
   res.redirect('/session');
 });
 
-// Reset session
-app.post('/reset', (req, res) => {
-  // Clear betting session
-  delete req.session.betting_session;
-  
-  req.session.flash = { info: 'Your session has been reset. You can start a new session now.' };
+app.post('/reset', async (req, res) => {
+  if (req.session.sessionId) {
+    await sessionsCollection.doc(req.session.sessionId).delete();
+    delete req.session.sessionId;
+  }
+  req.session.flash = { info: 'Your session has been reset.' };
   res.redirect('/');
 });
 
 // Error handling
-// 404 handler
 app.use((req, res, next) => {
-  res.status(404).render('index', { 
-    error: 'Page not found' 
-  });
+  res.status(404).render('index', { error: 'Page not found' });
 });
 
-// 500 handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).render('index', { 
-    error: 'Something went wrong! Please try again later.' 
-  });
+  res.status(500).render('index', { error: 'Something went wrong!' });
 });
 
 // Start server
