@@ -14,6 +14,15 @@ const app = express();
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "..", "views"));
 // Middleware 
+const sessionConfig = {
+    name: "session",
+    keys: [process.env.SESSION_SECRET || "oscar-grind-baccarat-tracker-secret"],
+    maxAge: 24 * 60 * 60 * 1000,
+    secure: process.env.NODE_ENV === "production",
+    secureProxy: true, // Trust the proxy
+};
+app.use(cookieSession(sessionConfig));
+app.use(express.urlencoded({ extended: true }));
 app.use(logger("dev"));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -21,17 +30,6 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "..", "public")));
 const sessionConfig = {
   name: "session",
-  keys: [process.env.SESSION_SECRET || "oscar-grind-baccarat-tracker-secret"],
-  maxAge: 24 * 60 * 60 * 1000,
-  secure: process.env.NODE_ENV === "production",
-  secureProxy: true, // Trust the proxy
-};
-// Flash message middleware
-app.use(function (req, res, next) {
-    res.locals.flash = req.session.flash || {};
-    delete req.session.flash;
-    next();
-});
 // Oscar Grind strategy calculation
 function calculateNextBet(currentBankroll, highestBankroll, baseBet, lastBet, lastResult) {
     if (!lastBet || !lastResult) return baseBet;
@@ -50,10 +48,19 @@ function calculateNextBet(currentBankroll, highestBankroll, baseBet, lastBet, la
         return parseFloat(lastBet);
     }
 }
+// Flash message middleware
+app.use(function (req, res, next) {
+    // Initialize req.session if it's not already
+    req.session = req.session || {};
+    res.locals.flash = req.session.flash || {};
+    delete req.session.flash;
+    next();
+    }
+}
 // Routes
 app.get("/", (req, res) => {
     if (req.session.sessionId) return res.redirect("/session");
-    res.render("index");
+    res.render("index", { flash: req.session.flash });
 });
 app.post("/", (req, res) => {
     console.log('Headers:', req.headers); console.log('Session data:', req.session);
@@ -90,7 +97,7 @@ app.get("/session", (req, res) => {
         return res.redirect("/");
     }
     const net_profit = session.current_bankroll - session.starting_bankroll;
-    res.render("session", { ...session, net_profit });
+    res.render("session", { ...session, net_profit, flash: req.session.flash });
 });
 app.post("/session", (req, res) => {
     if (!req.session.sessionId) {
