@@ -29,45 +29,47 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "..", "public")));
 // Routes
 app.get("/", (req, res) => {
-    if (req.session.sessionId) return res.redirect("/session");
-    res.render("index", { flash: req.session.flash });
+    if (req.session.sessionId) {
+        return res.redirect("/session");
+    }
+    res.render("index", { flash: req.flash });
 });
 app.post("/", (req, res) => {
     console.log('Headers:', req.headers); console.log('Session data:', req.session);
     if (!req.body) {
-        req.session.flash = { danger: 'Please enter valid inputs.' };
+        req.flash = { danger: 'Please enter valid inputs.' };
         return res.redirect('/');
     }
     const starting_bankroll = parseFloat(req.body.starting_bankroll);
     const base_bet = parseFloat(req.body.base_bet);
     const profit_target = parseFloat(req.body.profit_target);
     if (isNaN(starting_bankroll) || starting_bankroll <= 0 ||
-        isNaN(base_bet) || base_bet <= 0 ||
-        isNaN(profit_target) || profit_target <= 0) {
-        req.session.flash = { danger: 'Please enter valid inputs.' };
+            isNaN(base_bet) || base_bet <= 0 ||
+            isNaN(profit_target) || profit_target <= 0) {
+        req.flash = { danger: 'Please enter valid inputs.' };
         return res.redirect('/');
     }
     req.session.sessionId = Math.random().toString(36).substring(2, 9);
     req.session.starting_bankroll = starting_bankroll;
     req.session.current_bankroll = starting_bankroll;
     req.session.highest_bankroll = starting_bankroll;
-    req.session.base_bet = base_bet;
-    req.session.profit_target = profit_target;
-    req.session.current_bet = base_bet;
-    req.session.round_number = 1;
-    req.session.bet_history = [];
-    req.session.flash = { success: "Session started successfully! Good luck!" };
+        req.session.base_bet = base_bet;
+        req.session.profit_target = profit_target;
+        req.session.current_bet = base_bet;
+        req.session.round_number = 1;
+        req.session.bet_history = [];
+    req.flash = { success: "Session started successfully! Good luck!" };
     res.redirect("/session");
 });
 app.get("/session", (req, res) => {
     const session = req.session;
     console.log('Session data:', req.session);
     if (!session || !session.sessionId) {
-        req.session.flash = { warning: "No active session found. Please set up a new session." };
+        req.flash = { warning: "No active session found. Please set up a new session." };
         return res.redirect("/");
     }
-    const net_profit = session.current_bankroll - session.starting_bankroll;
-    res.render("session", { ...session, net_profit, flash: req.session.flash });
+        const net_profit = session.current_bankroll - session.starting_bankroll;
+    res.render("session", { ...session, net_profit, flash: req.flash });
 });
 app.post("/session", (req, res) => {
     if (!req.session.sessionId) {
@@ -118,16 +120,18 @@ app.post("/session", (req, res) => {
     session.current_bet = nextBet;
     let flashType = result === "win" ? "success" : "info";
     let flashMessage = `${result === "win" ? "You won" : "You lost"} $${bet_amount.toFixed(2)}. Current bankroll: $${session.current_bankroll.toFixed(2)}.`;
-    req.session.flash = {
-        [flashType]: flashMessage
-    };
+    req.flash = { [flashType]: flashMessage };
     res.redirect("/session");
 });
 app.post("/reset", (req, res) => {
     if (req.session) {
         req.session = null;
     }
-    req.session.flash = { info: "Your session has been reset." };
+        
+    
+    
+    
+    req.flash = { info: "Your session has been reset." };
     res.redirect("/");
 });
 // Error handling
