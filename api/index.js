@@ -27,26 +27,6 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "..", "public")));
-const sessionConfig = {
-  name: "session",
-// Oscar Grind strategy calculation
-function calculateNextBet(currentBankroll, highestBankroll, baseBet, lastBet, lastResult) {
-    if (!lastBet || !lastResult) return baseBet;
-    const threshold = highestBankroll + parseFloat(baseBet);
-    if (lastResult === "win") {
-        if (currentBankroll >= threshold) return baseBet;
-        const standardNextBet = parseFloat(lastBet) + parseFloat(baseBet);
-        const potentialBankroll = currentBankroll + standardNextBet;
-        if (potentialBankroll > threshold) {
-            const adjustedBet = threshold - currentBankroll;
-            const multiplier = Math.floor(adjustedBet / baseBet);
-            return Math.max(baseBet, multiplier * baseBet);
-        }
-        return standardNextBet;
-    } else {
-        return parseFloat(lastBet);
-    }
-}
 // Routes
 app.get("/", (req, res) => {
     if (req.session.sessionId) return res.redirect("/session");
@@ -158,4 +138,22 @@ app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).render('index', { error: 'Something went wrong!' });
 });
+// Oscar Grind strategy calculation
+function calculateNextBet(currentBankroll, highestBankroll, baseBet, lastBet, lastResult) {
+    if (!lastBet || !lastResult) return baseBet;
+    const threshold = highestBankroll + parseFloat(baseBet);
+    if (lastResult === "win") {
+        if (currentBankroll >= threshold) return baseBet;
+        const standardNextBet = parseFloat(lastBet) + parseFloat(baseBet);
+        const potentialBankroll = currentBankroll + standardNextBet;
+        if (potentialBankroll > threshold) {
+            const adjustedBet = threshold - currentBankroll;
+            const multiplier = Math.floor(adjustedBet / baseBet);
+            return Math.max(baseBet, multiplier * baseBet);
+        }
+        return standardNextBet;
+    } else {
+        return parseFloat(lastBet);
+    }
+}
 module.exports = app;
