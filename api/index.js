@@ -14,16 +14,15 @@ const app = express();
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "..", "views"));
 // Middleware 
-const sessionConfig = {
+app.use(express.urlencoded({ extended: true }));
+app.use(logger("dev"));
+app.use(cookieSession({
     name: "session",
     keys: [process.env.SESSION_SECRET || "oscar-grind-baccarat-tracker-secret"],
     maxAge: 24 * 60 * 60 * 1000,
     secure: process.env.NODE_ENV === "production",
-    secureProxy: true, // Trust the proxy
-};
-app.use(cookieSession(sessionConfig));
-app.use(express.urlencoded({ extended: true }));
-app.use(logger("dev"));
+    secureProxy: true
+}));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
@@ -46,15 +45,6 @@ function calculateNextBet(currentBankroll, highestBankroll, baseBet, lastBet, la
         return standardNextBet;
     } else {
         return parseFloat(lastBet);
-    }
-}
-// Flash message middleware
-app.use(function (req, res, next) {
-    // Initialize req.session if it's not already
-    req.session = req.session || {};
-    res.locals.flash = req.session.flash || {};
-    delete req.session.flash;
-    next();
     }
 }
 // Routes
