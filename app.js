@@ -1,14 +1,16 @@
-// Load environment variables
-dotenv.config();
+// Load .env variables first
+const dotenv = require('dotenv');
+dotenv.config(); // ✅ immediately after importing dotenv
 
-// Import required packages
+// Then other packages
 const express = require('express');
 const path = require('path');
 const session = require('express-session');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
-const dotenv = require('dotenv');
+const MongoStore = require('connect-mongo');
+
 
 // Initialize Express app
 const app = express();
