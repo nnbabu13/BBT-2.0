@@ -9,7 +9,6 @@ const session = require('express-session');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
-const MongoStore = require('connect-mongo');
 
 
 // Initialize Express app
