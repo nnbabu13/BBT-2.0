@@ -85,18 +85,14 @@ app.post("/", (req, res) => {
 });
 
 app.get("/session", (req, res) => {
-    const session = req.session;
-    if (!session || !session.sessionId) {
-        req.session.flash = { warning: "No active session found. Please set up a new session." };
-        return res.redirect("/");
-    }
-      if (session.current_bankroll - session.starting_bankroll >= session.profit_target) {
-      req.session.flash = { success: `You've reached your profit target of $${session.profit_target.toFixed(2)}!` };
-    } else if (session.current_bankroll < session.base_bet) {
-        req.session.flash = { danger: "Bankroll below base bet. Consider resetting your strategy." };
-    }
-    const net_profit = session.current_bankroll - session.starting_bankroll;
-    res.render("session", { ...session, net_profit });
+  const session = req.session;
+  console.log('Session data:', req.session);
+  if (!session || !session.sessionId) {
+    req.session.flash = { warning: "No active session found. Please set up a new session." };
+    return res.redirect("/");
+  }
+  const net_profit = (session.current_bankroll || 0) - (session.starting_bankroll || 0);
+  res.render("session", { ...session, net_profit });
 });
 app.post("/session", (req, res) => {
     if (!req.session.sessionId) {
