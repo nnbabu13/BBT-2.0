@@ -39,7 +39,7 @@ app.get("/", (req, res) => {
 app.post("/", (req, res) => {
     console.log('Headers:', req.headers); console.log('Session data:', req.session);
     if (!req.body) {
-        req.flash = { danger: 'Please enter valid inputs.' };
+        req.session.flash = { danger: 'Please enter valid inputs.' };
         return res.redirect('/');
     }
         const starting_bankroll = parseFloat(req.body.starting_bankroll);
@@ -48,7 +48,7 @@ app.post("/", (req, res) => {
     if (isNaN(starting_bankroll) || starting_bankroll <= 0 ||
             isNaN(base_bet) || base_bet <= 0 ||
             isNaN(profit_target) || profit_target <= 0) {
-        req.flash = { danger: 'Please enter valid inputs.' };
+        req.session.flash = { danger: 'Please enter valid inputs.' };
         return res.redirect('/');
     }
     req.session.sessionId = Math.random().toString(36).substring(2, 9);
@@ -59,14 +59,14 @@ app.post("/", (req, res) => {
         req.session.profit_target = profit_target;
         req.session.current_bet = base_bet;
             req.session.round_number = 1;
-            req.session.bet_history = [];
-    req.flash = { success: "Session started successfully! Good luck!" };
+                req.session.bet_history = [];
+    req.session.flash = { success: "Session started successfully! Good luck!" };
     res.redirect("/session");
 });
 app.get("/session", (req, res) => {
     const session = req.session;
     console.log('Session data:', req.session);
-    if (!session || !session.sessionId) {
+        if (!session || !session.sessionId) {
         req.flash = { warning: "No active session found. Please set up a new session." };
         return res.redirect("/");
     }
@@ -121,16 +121,16 @@ app.post("/session", (req, res) => {
     session.round_number += 1;
     session.current_bet = nextBet;
     let flashType = result === "win" ? "success" : "info";
-            let flashMessage = `${result === "win" ? "You won" : "You lost"} $${bet_amount.toFixed(2)}. Current bankroll: $${session.current_bankroll.toFixed(2)}.`;
-    req.flash = { [flashType]: flashMessage };
+                let flashMessage = `${result === "win" ? "You won" : "You lost"} $${bet_amount.toFixed(2)}. Current bankroll: $${session.current_bankroll.toFixed(2)}.`;
+    req.session.flash = { [flashType]: flashMessage };
     res.redirect("/session");
 });
 app.post("/reset", (req, res) => {
     if (req.session) {
         req.session = null;
     }
-        
-    req.flash = { info: "Your session has been reset." };
+            
+    req.session.flash = { info: "Your session has been reset." };
     res.redirect("/");
 });
 
